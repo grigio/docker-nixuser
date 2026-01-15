@@ -43,7 +43,9 @@ docker run -it --rm nix-nixuser:latest
 Or specify a command:
 
 ```bash
-docker run -it --rm nix-nixuser:latest bash
+docker compose up -d
+docker compose attach nixuser bash
+cd  /data && nix profile add nixpkgs#opencode && opencode --hostname 0.0.0.0 --port 8000
 ```
 
 ### 4. Test Nix Installation
