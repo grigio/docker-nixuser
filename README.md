@@ -1,6 +1,9 @@
-# nix-nixuser
+# docker-nixuser
+
 
 A lightweight Docker image providing a full Nix package manager environment for non-root users. Perfect for testing Nix packages in an isolated sandbox (~223MB), with optional data persistence through volume mounting.
+
+![CI](https://github.com/grigio/docker-nixuser/workflows/CI/badge.svg)
 
 ## Features
 
