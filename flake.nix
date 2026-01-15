@@ -69,7 +69,7 @@
            # Ensure user directories exist and are owned by user
            mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
            echo "" > /home/nixuser/.bashrc
-           # Create symlink for user profile
+           # Create symlink for user profile (target directory already exists from extraCommands)
            ln -sf /nix/var/nix/profiles/per-user/1000/profile /home/nixuser/.nix-profile
            chown -R 1000:1000 /home/nixuser
            chmod -R 755 /home/nixuser
@@ -100,12 +100,13 @@
         '')
       ];
 
-      # Create home directory structure
+      # Create home directory structure during image build
       extraCommands = ''
+        # Create home directory and user structure (ownership set at runtime)
         mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
         echo "" > /home/nixuser/.bashrc
-        # Create symlink for user profile
-        ln -sf /nix/var/nix/profiles/per-user/1000/profile /home/nixuser/.nix-profile
+        # Create symlink for user profile (target will be created at runtime)
+        # ln -sf /nix/var/nix/profiles/per-user/1000/profile /home/nixuser/.nix-profile
       '';
 
       config = {
