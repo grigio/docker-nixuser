@@ -1,0 +1,9 @@
+
+services:
+  nixuser:
+    image: nix-nixuser:latest
+    command: bash
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./data:/data

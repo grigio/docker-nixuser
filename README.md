@@ -1,10 +1,6 @@
 # nix-nixuser
 
-A Docker image that provides a Nix package manager environment running as a non-root user (`nixuser`).
-
-## Overview
-
-This project builds a minimal Docker image with Nix installed and configured to run under a non-root user. The image is designed for development and testing environments where you need Nix functionality without root privileges.
+A lightweight Docker image providing a full Nix package manager environment for non-root users. Perfect for testing Nix packages in an isolated sandbox (~223MB), with optional data persistence through volume mounting.
 
 ## Features
 
@@ -13,9 +9,16 @@ This project builds a minimal Docker image with Nix installed and configured to 
 - Proper SSL certificate configuration
 - User profile setup for package management
 
+## Prerequisites
+
+- [Nix](https://nixos.org/download.html) with flakes support enabled
+- [Docker](https://docs.docker.com/get-docker/) for running the container
+
 ## Quick Start
 
 ### 1. Build the Image
+
+Build the Docker image using Nix flakes (this may take a few minutes on first run):
 
 ```bash
 nix --extra-experimental-features 'nix-command flakes' build .#default
@@ -23,18 +26,29 @@ nix --extra-experimental-features 'nix-command flakes' build .#default
 
 ### 2. Load the Image
 
+Load the built image into Docker:
+
 ```bash
 docker load < result
 ```
 
 ### 3. Run the Container
 
+Start an interactive container:
+
 ```bash
 docker run -it --rm nix-nixuser:latest
+```
+
+Or specify a command:
+
+```bash
 docker run -it --rm nix-nixuser:latest bash
 ```
 
 ### 4. Test Nix Installation
+
+Verify the setup by installing and running a test package:
 
 ```bash
 docker run --rm nix-nixuser:latest sh -c 'whoami && nix profile add nixpkgs#hello && hello'
@@ -46,22 +60,47 @@ nixuser
 Hello, world!
 ```
 
-## Configuration
+## Usage
 
-- **User**: `nixuser` (UID/GID: 1000)
-- **Working Directory**: `/home/nixuser`
-- **Environment Variables**:
-  - `HOME=/tmp` (falls back to user home for Nix operations)
-  - `USER=nixuser`
-  - `PATH=/bin:/usr/bin:/home/nixuser/.nix-profile/bin`
-  - `TMPDIR=/home/nixuser/.cache`
-  - `SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt`
-  - `NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt`
-  - `NIX_REMOTE_TRUSTED_PUBLIC_KEYS=cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=`
-  - `NIX_PATH=nixpkgs=https://nixos.org/channels/nixpkgs-unstable`
-  - `UMASK=022`
+### Installing Packages
+
+Inside the container, install packages using Nix:
+
+```bash
+# Install a package
+nix profile add nixpkgs#git
+
+# List installed packages
+nix profile list
+
+# Run the package
+git --version
+```
+
+### Data Persistence
+
+The `./data` directory is mounted at `/data` in the container for persisting files between runs.
+
+## Troubleshooting
+
+### Build Issues
+- Ensure Nix experimental features are enabled: `nix --extra-experimental-features 'nix-command flakes'`
+- Check that Docker is running and accessible
+
+### Runtime Issues
+- If Nix commands fail, verify the container has internet access for package downloads
+- Permission errors may occur if the image wasn't built with proper user setup
+
+### Nix Daemon
+- The container automatically starts the Nix daemon; wait a moment after startup if commands hang
+
+### SSL Certificate Errors
+- The image includes CA certificates; if issues persist, check your host's certificate setup
 
 ## Development
 
-See [AGENTS.md](AGENTS.md) for development notes and internal configuration details.</content>
-<parameter name="filePath">/home/grigio/Code/nixdev/README.md
+See [AGENTS.md](AGENTS.md) for development notes and internal configuration details.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
