@@ -100,13 +100,9 @@
         '')
       ];
 
-      # Create home directory structure during image build
+      # No extraCommands needed - home directory setup done at runtime
       extraCommands = ''
-        # Create home directory and user structure (ownership set at runtime)
-        mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
-        echo "" > /home/nixuser/.bashrc
-        # Create symlink for user profile (target will be created at runtime)
-        # ln -sf /nix/var/nix/profiles/per-user/1000/profile /home/nixuser/.nix-profile
+        # All home directory setup moved to runtime to avoid permission issues
       '';
 
       config = {
