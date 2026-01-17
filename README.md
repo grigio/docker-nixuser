@@ -20,7 +20,19 @@ A lightweight Docker image providing a full Nix package manager environment for 
 
 ## Quick Start
 
-### 1. Build the Image
+### Option 1: Pull from GitHub Container Registry (Recommended)
+
+Pull the pre-built image from GHCR:
+
+```bash
+# Pull latest release
+docker run --rm ghcr.io/grigio/docker-nixuser:latest sh -c 'whoami && nix profile add nixpkgs#hello && hello'
+
+# Pull specific version
+docker run --rm ghcr.io/grigio/docker-nixuser:0.0.1 sh -c 'whoami && nix profile add nixpkgs#hello && hello'
+```
+
+### Option 2: Build Locally
 
 Build the Docker image using Nix flakes (this may take a few minutes on first run):
 
@@ -28,17 +40,15 @@ Build the Docker image using Nix flakes (this may take a few minutes on first ru
 nix --extra-experimental-features 'nix-command flakes' build .#default
 ```
 
-### 2. Load the Image
-
 Load the built image into Docker:
 
 ```bash
 docker load < result
 ```
 
-### 3. Run the Container
+### Run the Container
 
-Just to test
+Just to test:
 
 ```bash
 docker run -it --rm nix-nixuser:latest
@@ -52,7 +62,7 @@ docker compose attach nixuser bash
 cd  /data && nix profile add nixpkgs#opencode && opencode --hostname 0.0.0.0 --port 8000
 ```
 
-### 4. Test Nix Installation
+### Test Nix Installation
 
 Verify the setup by installing and running a test package:
 
@@ -102,6 +112,20 @@ The `./data` directory is mounted at `/data` in the container for persisting fil
 
 ### SSL Certificate Errors
 - The image includes CA certificates; if issues persist, check your host's certificate setup
+
+## Release Process
+
+This project uses automated releases through GitHub Actions:
+
+1. **Development**: Make changes and push to `master` branch
+2. **Tag**: Create a version tag: `git tag v0.0.2`
+3. **Push tag**: `git push origin v0.0.2`
+4. **Automatic**: CI builds, tests, and publishes to GitHub Container Registry
+
+**Available Images:**
+- `ghcr.io/grigio/docker-nixuser:latest` - Latest release
+- `ghcr.io/grigio/docker-nixuser:0.0.1` - Specific version
+- `ghcr.io/grigio/docker-nixuser:0.0.2` - Latest version
 
 ## Development
 
