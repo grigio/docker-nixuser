@@ -87,7 +87,7 @@
           "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
           "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
           "NIX_REMOTE_TRUSTED_PUBLIC_KEYS=cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-          "NIX_PATH=nixpkgs=https://nixos.org/channels/nixpkgs-25.11"
+          "NIX_PATH=nixpkgs=${inputs.nixpkgs}"
            "NIX_REMOTE="
            "UMASK=022"
         ];
