@@ -23,16 +23,33 @@ jobs:
       - name: Check for flake updates
         id: check-updates
         run: |
-          # Extract nixpkgs ref from flake.nix
-          NIXPKGS_REF=$(grep -o 'github:NixOS/nixpkgs/[^"]*' flake.nix | cut -d'/' -f4)
+          # Extract nixpkgs ref from flake.nix with better parsing
+          NIXPKGS_REF=$(grep 'inputs.nixpkgs.url' flake.nix | sed 's/.*github:NixOS\/nixpkgs\/\([^"]*\).*/\1/')
+          
+          # Fallback to default if parsing fails
+          if [ -z "$NIXPKGS_REF" ]; then
+            NIXPKGS_REF="nixos-25.11"
+          fi
+          
+          echo "Extracted nixpkgs ref: $NIXPKGS_REF"
           
           # Get current and latest revisions
           CURRENT_REV=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev')
           LATEST_REV=$(curl -s "https://api.github.com/repos/NixOS/nixpkgs/commits/$NIXPKGS_REF" | jq -r '.sha')
           
-          echo "Using nixpkgs ref: $NIXPKGS_REF"
           echo "Current revision: $CURRENT_REV"
           echo "Latest revision: $LATEST_REV"
+          
+          # Check if we got valid responses
+          if [ -z "$CURRENT_REV" ] || [ "$CURRENT_REV" = "null" ]; then
+            echo "Failed to get current revision"
+            exit 1
+          fi
+          
+          if [ -z "$LATEST_REV" ] || [ "$LATEST_REV" = "null" ]; then
+            echo "Failed to get latest revision for ref: $NIXPKGS_REF"
+            exit 1
+          fi
           
           if [ "$CURRENT_REV" = "$LATEST_REV" ]; then
             echo "flake_status=success" >> $GITHUB_ENV
