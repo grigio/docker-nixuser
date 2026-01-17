@@ -52,6 +52,9 @@ Just to test:
 
 ```bash
 docker run -it --rm nix-nixuser:latest
+
+docker run -v ./data:/data --rm -ti ghcr.io/grigio/docker-nixuser:latest sh -c "cd /data && opencode"
+
 ```
 
 Or specify a command:
