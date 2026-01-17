@@ -21,8 +21,17 @@
         util-linux
         sudo
 
-        opencode
+        # optional
+        findutils
+        iputils
+        gnumake
         curl
+        bun
+        uv # python
+        nano
+        ripgrep  # grep
+
+        opencode
 
         (writeTextDir "etc/nix/nix.conf" "experimental-features = nix-command flakes\nsubstituters = https://cache.nixos.org/\ntrusted-users = root nixuser\nsandbox = false\nbuild-users-group =\nssl-cert-file = ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt\nrequire-sigs = false\n")
         (writeTextDir "etc/passwd" "root:x:0:0::/root:/bin/bash\nnixuser:x:1000:1000::/home/nixuser:/bin/bash\n")
