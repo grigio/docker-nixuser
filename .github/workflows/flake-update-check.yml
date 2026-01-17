@@ -1,0 +1,73 @@
+name: Flake Update Check
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-flake-updates:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Nix
+        uses: cachix/install-nix-action@v25
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            
+      - name: Check for flake updates
+        id: check-updates
+        run: |
+          # Extract nixpkgs ref from flake.nix
+          NIXPKGS_REF=$(grep -o 'github:NixOS/nixpkgs/[^"]*' flake.nix | cut -d'/' -f4)
+          
+          # Get current and latest revisions
+          CURRENT_REV=$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev')
+          LATEST_REV=$(curl -s "https://api.github.com/repos/NixOS/nixpkgs/commits/$NIXPKGS_REF" | jq -r '.sha')
+          
+          echo "Using nixpkgs ref: $NIXPKGS_REF"
+          echo "Current revision: $CURRENT_REV"
+          echo "Latest revision: $LATEST_REV"
+          
+          if [ "$CURRENT_REV" = "$LATEST_REV" ]; then
+            echo "up_to_date=true" >> $GITHUB_OUTPUT
+            echo " Flake.lock is up to date"
+          else
+            echo "up_to_date=false" >> $GITHUB_OUTPUT
+            echo " Flake.lock is outdated"
+          fi
+          
+      - name: Create badge
+        if: always()
+        run: |
+          if [ "${{ steps.check-updates.outputs.up_to_date }}" = "true" ]; then
+            COLOR="brightgreen"
+            STATUS="up%20to%20date"
+          else
+            COLOR="red"
+            STATUS="outdated"
+          fi
+          
+          # Create badge data (simple shield format)
+          cat > flake-lock-status.json << EOF
+          {
+            "schemaVersion": 1,
+            "label": "flake.lock",
+            "message": "$STATUS",
+            "color": "$COLOR"
+          }
+          EOF
+          
+      - name: Deploy to GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          keep_files: true
+          dest_dir: badges
