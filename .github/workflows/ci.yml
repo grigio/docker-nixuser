@@ -43,9 +43,9 @@ jobs:
             if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               TAG="${TAG#v}"
             fi
-            IMAGE_TAG="ghcr.io/${{ github.repository }}:$TAG"
+            IMAGE_TAG="ghcr.io/grigio/nix-nixuser:$TAG"
           else
-            IMAGE_TAG="ghcr.io/${{ github.repository }}:latest"
+            IMAGE_TAG="ghcr.io/grigio/nix-nixuser:latest"
           fi
           echo "tags=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "Image tag: $IMAGE_TAG"
@@ -93,14 +93,14 @@ jobs:
           fi
           
           # Tag the loaded image
-          docker tag nix-nixuser:latest ghcr.io/${{ github.repository }}:$TAG
+          docker tag nix-nixuser:latest ghcr.io/grigio/nix-nixuser:$TAG
           
           # Push to GHCR
-          docker push ghcr.io/${{ github.repository }}:$TAG
+          docker push ghcr.io/grigio/nix-nixuser:$TAG
           
           # Also tag as latest if this is the newest version
-          docker tag nix-nixuser:latest ghcr.io/${{ github.repository }}:latest
-          docker push ghcr.io/${{ github.repository }}:latest
+          docker tag nix-nixuser:latest ghcr.io/grigio/nix-nixuser:latest
+          docker push ghcr.io/grigio/nix-nixuser:latest
 
       - name: Output image info
         run: |
@@ -108,5 +108,5 @@ jobs:
           if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             TAG="${TAG#v}"
           fi
-          echo "🎉 Image published to: ghcr.io/${{ github.repository }}:$TAG"
-          echo "📦 Pull with: docker pull ghcr.io/${{ github.repository }}:$TAG"
+          echo "🎉 Image published to: ghcr.io/grigio/nix-nixuser:$TAG"
+          echo "📦 Pull with: docker pull ghcr.io/grigio/nix-nixuser:$TAG"
