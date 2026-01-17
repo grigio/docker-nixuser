@@ -37,7 +37,7 @@ docker load < result
 
 ### 3. Run the Container
 
-Start an interactive container:
+Just to test
 
 ```bash
 docker run -it --rm nix-nixuser:latest
@@ -46,7 +46,7 @@ docker run -it --rm nix-nixuser:latest
 Or specify a command:
 
 ```bash
-docker compose up -d
+docker compose up -d --remove-orphans
 docker compose attach nixuser bash
 cd  /data && nix profile add nixpkgs#opencode && opencode --hostname 0.0.0.0 --port 8000
 ```
