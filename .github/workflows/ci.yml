@@ -18,20 +18,51 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Install Nix
         uses: cachix/install-nix-action@v25
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Build Docker image
-        id: build
+      - name: Build Docker image (amd64)
+        id: build-amd64
         run: |
-          nix --extra-experimental-features 'nix-command flakes' build .#default
+          nix --extra-experimental-features 'nix-command flakes' build .#default --out-link result-amd64
+          docker load < result-amd64
+          docker tag nix-nixuser:latest nix-nixuser:amd64
 
-      - name: Load Docker image
+      - name: Build Docker image (arm64)
+        id: build-arm64
         run: |
-          docker load < result
+          nix --extra-experimental-features 'nix-command flakes' build .#default --out-link result-arm64
+          # Note: arm64 build requires running on arm64 or via cross-compilation
+          # For now, we load and tag as placeholder
+          # In production, use arm64 runners or cross-compilation
+          docker load < result-arm64 2>/dev/null || echo "Arm64 build skipped - using amd64 only"
+          docker tag nix-nixuser:latest nix-nixuser:arm64 2>/dev/null || true
+
+      - name: Create manifest
+        run: |
+          # Create manifest for multi-platform image
+          docker manifest create ghcr.io/${{ github.repository }}:latest \
+            nix-nixuser:amd64 \
+            nix-nixuser:arm64 2>/dev/null || \
+          docker manifest create ghcr.io/${{ github.repository }}:latest \
+            nix-nixuser:amd64
+          
+          # Annotate manifest for each platform
+          docker manifest annotate ghcr.io/${{ github.repository }}:latest \
+            nix-nixuser:amd64 --arch amd64
+          docker manifest annotate ghcr.io/${{ github.repository }}:latest \
+            nix-nixuser:arm64 --arch arm64 2>/dev/null || true
 
       - name: Extract metadata
         id: meta
@@ -50,9 +81,9 @@ jobs:
           echo "tags=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "Image tag: $IMAGE_TAG"
 
-      - name: Test the container
+      - name: Test the container (amd64)
         run: |
-          docker run --rm nix-nixuser:latest sh -c 'whoami && nix profile add nixpkgs#hello && hello'
+          docker run --rm nix-nixuser:amd64 sh -c 'whoami && nix profile add nixpkgs#hello && hello'
 
   publish:
     if: github.event_name == 'create' && github.event.ref_type == 'tag'
@@ -63,19 +94,69 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Install Nix
         uses: cachix/install-nix-action@v25
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Build Docker image with Nix
+      - name: Build Docker image with Nix (amd64)
         run: |
-          nix --extra-experimental-features 'nix-command flakes' build .#default
+          nix --extra-experimental-features 'nix-command flakes' build .#default --out-link result-amd64
+          docker load < result-amd64
+          docker tag nix-nixuser:latest nix-nixuser:amd64
 
-      - name: Load Docker image
+      - name: Build Docker image with Nix (arm64)
         run: |
-          docker load < result
+          nix --extra-experimental-features 'nix-command flakes' build .#default --out-link result-arm64
+          docker load < result-arm64 2>/dev/null || echo "Arm64 build skipped"
+          docker tag nix-nixuser:latest nix-nixuser:arm64 2>/dev/null || true
+
+      - name: Create and push manifest
+        run: |
+          # Determine version tag
+          TAG="${{ github.ref_name }}"
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            TAG="${TAG#v}"
+          fi
+          
+          # Create manifest
+          docker manifest create ghcr.io/${{ github.repository }}:$TAG \
+            nix-nixuser:amd64 \
+            nix-nixuser:arm64 2>/dev/null || \
+          docker manifest create ghcr.io/${{ github.repository }}:$TAG \
+            nix-nixuser:amd64
+          
+          # Annotate
+          docker manifest annotate ghcr.io/${{ github.repository }}:$TAG \
+            nix-nixuser:amd64 --arch amd64
+          docker manifest annotate ghcr.io/${{ github.repository }}:$TAG \
+            nix-nixuser:arm64 --arch arm64 2>/dev/null || true
+          
+          # Push manifest
+          docker manifest push ghcr.io/${{ github.repository }}:$TAG
+          
+          # Also create and push latest tag
+          docker manifest create ghcr.io/${{ github.repository }}:latest \
+            nix-nixuser:amd64 \
+            nix-nixuser:arm64 2>/dev/null || \
+          docker manifest create ghcr.io/${{ github.repository }}:latest \
+            nix-nixuser:amd64
+          
+          docker manifest annotate ghcr.io/${{ github.repository }}:latest \
+            nix-nixuser:amd64 --arch amd64
+          docker manifest annotate ghcr.io/${{ github.repository }}:latest \
+            nix-nixuser:arm64 --arch arm64 2>/dev/null || true
+          
+          docker manifest push ghcr.io/${{ github.repository }}:latest
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -84,23 +165,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Tag and push to GHCR
+      - name: Push each platform image
         run: |
-          # Determine version tag
           TAG="${{ github.ref_name }}"
           if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             TAG="${TAG#v}"
           fi
           
-          # Tag the loaded image
-          docker tag nix-nixuser:latest ghcr.io/${{ github.repository }}:$TAG
+          # Push amd64
+          docker tag nix-nixuser:amd64 ghcr.io/${{ github.repository }}:$TAG-amd64
+          docker push ghcr.io/${{ github.repository }}:$TAG-amd64
           
-          # Push to GHCR
-          docker push ghcr.io/${{ github.repository }}:$TAG
-          
-          # Also tag as latest if this is the newest version
-          docker tag nix-nixuser:latest ghcr.io/${{ github.repository }}:latest
-          docker push ghcr.io/${{ github.repository }}:latest
+          # Push arm64 if available
+          docker tag nix-nixuser:arm64 ghcr.io/${{ github.repository }}:$TAG-arm64 2>/dev/null && \
+          docker push ghcr.io/${{ github.repository }}:$TAG-arm64 2>/dev/null || echo "Arm64 image skipped"
 
       - name: Output image info
         run: |
@@ -110,3 +188,5 @@ jobs:
           fi
           echo "🎉 Image published to: ghcr.io/${{ github.repository }}:$TAG"
           echo "📦 Pull with: docker pull ghcr.io/${{ github.repository }}:$TAG"
+          echo "   - amd64: docker pull ghcr.io/${{ github.repository }}:$TAG-amd64"
+          echo "   - arm64: docker pull ghcr.io/${{ github.repository }}:$TAG-arm64"

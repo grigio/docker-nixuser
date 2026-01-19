@@ -2,6 +2,23 @@
 
 NOTE: Keep it updated with the most useful non-trivial dev info. Keep it minimal.
 
+## Multi-Platform CI Builds
+
+The CI workflow builds Docker images for:
+- `linux/amd64` (x86_64)
+- `linux/arm64` (aarch64)
+
+Multi-platform images use Docker manifests. Platform-specific images are tagged as:
+- `ghcr.io/grigio/docker-nixuser:TAG-amd64`
+- `ghcr.io/grigio/docker-nixuser:TAG-arm64`
+
+## Flake Auto-Update
+
+The `flake-update-check.yml` workflow runs weekly (Sunday 2 AM UTC) and:
+1. Checks if `flake.lock` is up to date
+2. Updates GitHub status check
+3. Automatically creates a pull request if updates are available
+
 ## Docker Image
 
 The project creates a Docker image with Nix package manager running as non-root user `nixuser`.

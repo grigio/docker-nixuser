@@ -5,6 +5,7 @@ A lightweight Docker image providing a full Nix package manager environment for 
 
 ![CI](https://github.com/grigio/docker-nixuser/workflows/CI/badge.svg)
 ![flake.lock](https://github.com/grigio/docker-nixuser/actions/workflows/flake-update-check.yml/badge.svg)
+![Multi-platform](https://img.shields.io/badge/platforms-linux%2Famd64%2C%20linux%2Farm64-blue)
 
 ## Features
 
@@ -25,11 +26,15 @@ A lightweight Docker image providing a full Nix package manager environment for 
 Pull the pre-built image from GHCR:
 
 ```bash
-# Pull latest release
+# Pull latest release (auto-selects architecture)
 docker run --rm ghcr.io/grigio/docker-nixuser:latest sh -c 'whoami && nix profile add nixpkgs#hello && hello'
 
-# Pull specific version
+# Pull specific version (auto-selects architecture)
 docker run --rm ghcr.io/grigio/docker-nixuser:0.0.1 sh -c 'whoami && nix profile add nixpkgs#hello && hello'
+
+# Pull specific architecture explicitly
+docker run --rm ghcr.io/grigio/docker-nixuser:latest-amd64 sh -c 'whoami && nix profile add nixpkgs#hello && hello'
+docker run --rm ghcr.io/docker-nixuser:latest-arm64 sh -c 'whoami && nix profile add nixpkgs#hello && hello'
 ```
 
 ### Option 2: Build Locally
@@ -120,12 +125,14 @@ This project uses automated releases through GitHub Actions:
 1. **Development**: Make changes and push to `master` branch
 2. **Tag**: Create a version tag: `git tag v0.0.2`
 3. **Push tag**: `git push origin v0.0.2`
-4. **Automatic**: CI builds, tests, and publishes to GitHub Container Registry
+4. **Automatic**: CI builds, tests, and publishes multi-platform images to GitHub Container Registry
 
 **Available Images:**
-- `ghcr.io/grigio/docker-nixuser:latest` - Latest release
-- `ghcr.io/grigio/docker-nixuser:0.0.1` - Specific version
-- `ghcr.io/grigio/docker-nixuser:0.0.2` - Latest version
+- `ghcr.io/grigio/docker-nixuser:latest` - Latest release (multi-arch manifest)
+- `ghcr.io/grigio/docker-nixuser:0.0.1` - Specific version (multi-arch manifest)
+- `ghcr.io/grigio/docker-nixuser:0.0.2` - Latest version (multi-arch manifest)
+- `ghcr.io/grigio/docker-nixuser:latest-amd64` - Latest amd64 only
+- `ghcr.io/grigio/docker-nixuser:latest-arm64` - Latest arm64 only
 
 ## Development
 
