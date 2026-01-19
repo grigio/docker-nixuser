@@ -4,10 +4,13 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs = inputs@{ self, nixpkgs }: let
-    system = "x86_64-linux";
-    pkgs = import nixpkgs { inherit system; };
+    systems = [ "x86_64-linux" "aarch64-linux" ];
+    forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
-    packages.${system}.default = pkgs.dockerTools.buildLayeredImage {
+    packages = forAllSystems (system: let
+      pkgs = import nixpkgs { inherit system; };
+    in {
+      default = pkgs.dockerTools.buildLayeredImage {
       name = "nix-nixuser";
       tag = "latest";
 
@@ -51,15 +54,15 @@
           #!/bin/bash
           # Setup permissions for user operations with standard store
           mkdir -p /nix/store/.links
-          
+
           # Create and set permissions for nix/var directory structure
           mkdir -p /nix/var/nix/{db,profiles,gcroots,temproots,userpool}
           mkdir -p /nix/var/nix/profiles/per-user/1000
-          
+
           # Make nixuser owner of the entire nix directory structure
           chown -R 1000:1000 /nix
           chmod -R 755 /nix
-          
+
              # Ensure user directories exist and are owned by user
              mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
              echo "" > /home/nixuser/.bashrc
@@ -75,7 +78,7 @@
           #!/bin/bash
           # Setup permissions as root
           /bin/setup-permissions
-          
+
           cd /home/nixuser
            # Switch to nixuser using setpriv with standard store location
            if [ $# -eq 0 ]; then
@@ -108,5 +111,6 @@
         ];
       };
     };
+    });
   };
 }
