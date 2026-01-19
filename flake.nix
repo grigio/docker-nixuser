@@ -28,6 +28,7 @@
         procps
         gnugrep
         gnused
+        which
         findutils
         iputils
         gnumake
