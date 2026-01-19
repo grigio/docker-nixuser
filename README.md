@@ -59,8 +59,7 @@ Or specify a command:
 
 ```bash
 docker compose up -d --remove-orphans
-docker compose attach nixuser bash
-cd  /data && nix profile add nixpkgs#opencode && opencode --hostname 0.0.0.0 --port 8000
+docker compose run --remove-orphans nixuser bash -c "cd /data && opencode"
 ```
 
 ### Test Nix Installation

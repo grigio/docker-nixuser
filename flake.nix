@@ -22,14 +22,17 @@
         sudo
 
         # optional
+        procps
+        gnugrep
+        gnused
         findutils
         iputils
         gnumake
         curl
-        bun
-        uv # python
+        bun # node
+        uv  # python
         nano
-        ripgrep  # grep
+        git
 
         opencode
 

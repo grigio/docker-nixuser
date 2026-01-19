@@ -1,7 +1,7 @@
 
 services:
   nixuser:
-    image: nix-nixuser:latest
+    image: ghcr.io/grigio/docker-nixuser
     command: bash
     stdin_open: true
     tty: true
