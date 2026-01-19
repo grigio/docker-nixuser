@@ -7,6 +7,8 @@ A lightweight Docker image providing a full Nix package manager environment for 
 ![flake.lock](https://github.com/grigio/docker-nixuser/actions/workflows/flake-update-check.yml/badge.svg)
 ![Multi-platform](https://img.shields.io/badge/platforms-linux%2Famd64%2C%20linux%2Farm64-blue)
 
+**UPDATE**: If you want a more light and mainstream approch you can use the official opencode alpine container with a few tweaks https://github.com/grigio/opencode-alpine-box
+
 ## Features
 
 - Non-root user `nixuser` (UID/GID: 1000)
