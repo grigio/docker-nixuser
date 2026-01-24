@@ -41,9 +41,10 @@ docker run --rm ghcr.io/docker-nixuser:latest-arm64 sh -c 'whoami && nix profile
 
 ### Option 2: Build Locally
 
-Build the Docker image using Nix flakes (this may take a few minutes on first run):
+Build the Docker image using Nix flakes, instead of Dockerfile, this may take a few minutes on first run:
 
 ```bash
+nix flake update --extra-experimental-features 'nix-command flakes'
 nix --extra-experimental-features 'nix-command flakes' build .#default
 ```
 
