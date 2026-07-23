@@ -61,8 +61,10 @@
               '')
               (writeScriptBin "setup-permissions" ''
                 #!/bin/bash
-                # /nix/var and /home/nixuser are pre-created and owned by 1000:1000
-                # Only fix permissions (chmod is safe on overlayfs, chown is not)
+                # buildLayeredImage uid/gid only applies to store layers.
+                # The customization layer (/nix/var, /etc, /bin, /home) stays
+                # as root:root, so chown those small paths here.
+                chown -R 1000:1000 /nix/var
                 chmod -R 755 /nix/var
                 chmod -R a+w /nix/store
 
