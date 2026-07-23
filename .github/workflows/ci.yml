@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-  create:
     tags: ['v*']
 
 jobs:
@@ -45,7 +44,7 @@ jobs:
         id: meta
         run: |
           # Determine image tag based on event
-          if [ "${{ github.event_name }}" = "create" ] && [ "${{ github.event.ref_type }}" = "tag" ]; then
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             # Remove 'v' prefix if present for semantic versioning
             TAG="${{ github.ref_name }}"
             if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -63,7 +62,7 @@ jobs:
           docker run --rm nix-nixuser:amd64 sh -c 'whoami && nix profile add nixpkgs#hello && hello'
 
   publish:
-    if: github.event_name == 'create' && github.event.ref_type == 'tag'
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
 
