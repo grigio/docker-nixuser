@@ -65,3 +65,13 @@ Hello, world!
   - `NIX_REMOTE_TRUSTED_PUBLIC_KEYS=cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=`
 - Entrypoint sets up proper directory permissions before switching to nixuser
 - Note: Home directory ownership issue resolved by setting HOME=/tmp in environment, allowing Nix to fall back to the properly owned /home/nixuser without warnings.
+
+## Overlayfs Permission Pitfalls (CRITICAL)
+
+Docker images run on overlayfs in CI. `chown` on lower-layer files triggers copy-up of file contents and is unreliable. `chmod` only copies metadata and works reliably. Rules:
+
+- **DO** use `chmod` to make files/dirs writable (e.g., `chmod -R a+w /nix/store`)
+- **DO NOT** use `chown -R` on `/nix/store` — fails silently on overlayfs, causing "Permission denied" errors
+- `/nix/var` is small, so `chown -R 1000:1000 /nix/var` works fine there
+- When nix needs access to store paths (lock files, substitution), use `chmod` not `chown`
+- Pre-create all per-user directories (`gcroots/per-user/1000`, etc.) at build time in `create-dirs` to avoid runtime creation failures
