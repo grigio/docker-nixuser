@@ -3,104 +3,107 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-  outputs = inputs@{ self, nixpkgs }: let
-    systems = [ "x86_64-linux" "aarch64-linux" ];
-    forAllSystems = nixpkgs.lib.genAttrs systems;
-  in {
-    formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
-    packages = forAllSystems (system: let
-      pkgs = import nixpkgs { inherit system; };
-    in {
-      default = pkgs.dockerTools.buildImage {
-      name = "nix-nixuser";
-      tag = "latest";
+  outputs = inputs@{ self, nixpkgs }:
+    let
+      systems = [ "x86_64-linux" "aarch64-linux" ];
+      forAllSystems = nixpkgs.lib.genAttrs systems;
+    in
+    {
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
+      packages = forAllSystems (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          default = pkgs.dockerTools.buildLayeredImage {
+            name = "nix-nixuser";
+            tag = "latest";
+            uid = 1000;
+            gid = 1000;
 
-      # Base layer with core system packages
-      copyToRoot = with pkgs; [
-        bashInteractive
-        coreutils
-        nix
-        cacert
-        shadow
-        util-linux
-        sudo
+            # Base layer with core system packages
+            contents = with pkgs; [
+              bashInteractive
+              coreutils
+              nix
+              cacert
+              shadow
+              util-linux
+              sudo
 
-        # optional
-        procps
-        gnugrep
-        gnused
-        which
-        findutils
-        iputils
-        gnumake
-        curl
-        bun # node
-        uv  # python
-        nano
-        git
+              # optional
+              procps
+              gnugrep
+              gnused
+              which
+              findutils
+              iputils
+              gnumake
+              curl
+              bun # node
+              uv # python
+              nano
+              git
 
-        opencode
+              opencode
 
-        (writeTextDir "etc/nix/nix.conf" "experimental-features = nix-command flakes\nsubstituters = https://cache.nixos.org/\ntrusted-users = root nixuser\nsandbox = false\nbuild-users-group =\nssl-cert-file = ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt\nrequire-sigs = false\n")
-        (writeTextDir "etc/passwd" "root:x:0:0::/root:/bin/bash\nnixuser:x:1000:1000::/home/nixuser:/bin/bash\n")
-        (writeTextDir "etc/group" "root:x:0:\nnixuser:x:1000:\nnixbld:x:30000:1000\n")
-        (writeTextDir "root/.bashrc" "")
+              (writeTextDir "etc/nix/nix.conf" "experimental-features = nix-command flakes\nsubstituters = https://cache.nixos.org/\ntrusted-users = root nixuser\nsandbox = false\nbuild-users-group =\nssl-cert-file = ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt\nrequire-sigs = false\n")
+              (writeTextDir "etc/passwd" "root:x:0:0::/root:/bin/bash\nnixuser:x:1000:1000::/home/nixuser:/bin/bash\n")
+              (writeTextDir "etc/group" "root:x:0:\nnixuser:x:1000:\nnixbld:x:30000:1000\n")
+              (writeTextDir "root/.bashrc" "")
 
-        (runCommand "create-dirs" {} ''
-          mkdir -p $out/nix/store/.links
-          mkdir -p $out/nix/var/nix/{db,profiles,gcroots,temproots,userpool}
-          mkdir -p $out/nix/var/nix/profiles/per-user/1000
-          mkdir -p $out/nix/var/nix/{gcroots,temproots,userpool}/per-user/1000
-        '')
-        (writeScriptBin "setup-permissions" ''
-          #!/bin/bash
-          mkdir -p /nix/store/.links
-          mkdir -p /nix/var/nix/{db,profiles,gcroots,temproots,userpool}
-          mkdir -p /nix/var/nix/profiles/per-user/1000
-          mkdir -p /nix/var/nix/{gcroots,temproots,userpool}/per-user/1000
+              (runCommand "create-dirs" { } ''
+                mkdir -p $out/nix/store/.links
+                mkdir -p $out/nix/var/nix/{db,profiles,gcroots,temproots,userpool}
+                mkdir -p $out/nix/var/nix/profiles/per-user/1000
+                mkdir -p $out/nix/var/nix/{gcroots,temproots,userpool}/per-user/1000
+                mkdir -p $out/home/nixuser
+              '')
+              (writeScriptBin "setup-permissions" ''
+                #!/bin/bash
+                # /nix/var and /home/nixuser are pre-created and owned by 1000:1000
+                # Only fix permissions (chmod is safe on overlayfs, chown is not)
+                chmod -R 755 /nix/var
+                chmod -R a+w /nix/store
 
-          chown -R 1000:1000 /nix/var
-          chmod -R 755 /nix/var
-          chmod -R a+w /nix/store
+                # Ensure user subdirectories exist at runtime
+                mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
+                echo "" > /home/nixuser/.bashrc
+                chown 1000:1000 /home/nixuser/.bashrc
+                chmod -R 755 /home/nixuser
+              '')
+              (writeScriptBin "entrypoint" ''
+                #!/bin/bash
+                # Setup permissions as root
+                /bin/setup-permissions
 
-             # Ensure user directories exist and are owned by user
-             mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
-             echo "" > /home/nixuser/.bashrc
-             chown -R 1000:1000 /home/nixuser
-             chmod -R 755 /home/nixuser
-        '')
-        (writeScriptBin "entrypoint" ''
-          #!/bin/bash
-          # Setup permissions as root
-          /bin/setup-permissions
+                cd /home/nixuser
+                 # Switch to nixuser using setpriv with standard store location
+                 if [ $# -eq 0 ]; then
+                   exec setpriv --reuid=1000 --regid=1000 --init-groups env HOME=/home/nixuser USER=nixuser NIX_REMOTE= bash
+                 else
+                   exec setpriv --reuid=1000 --regid=1000 --init-groups env HOME=/home/nixuser USER=nixuser NIX_REMOTE= "$@"
+                 fi
+              '')
+            ];
 
-          cd /home/nixuser
-           # Switch to nixuser using setpriv with standard store location
-           if [ $# -eq 0 ]; then
-             exec setpriv --reuid=1000 --regid=1000 --init-groups env HOME=/home/nixuser USER=nixuser NIX_REMOTE= bash
-           else
-             exec setpriv --reuid=1000 --regid=1000 --init-groups env HOME=/home/nixuser USER=nixuser NIX_REMOTE= "$@"
-           fi
-        '')
-      ];
-
-      config = {
-        WorkingDir = "/home/nixuser";
-        Entrypoint = [ "/bin/entrypoint" ];
-        Env = [
-          "HOME=/tmp"
-          "USER=nixuser"
-          "PATH=/bin:/usr/bin:/home/nixuser/.nix-profile/bin"
-          "TMPDIR=/home/nixuser/.cache"
-          "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-          "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-          "NIX_REMOTE_TRUSTED_PUBLIC_KEYS=cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-          "NIX_PATH=nixpkgs=${inputs.nixpkgs}"
-           "NIX_REMOTE="
-           "UMASK=022"
-        ];
-      };
+            config = {
+              WorkingDir = "/home/nixuser";
+              Entrypoint = [ "/bin/entrypoint" ];
+              Env = [
+                "HOME=/tmp"
+                "USER=nixuser"
+                "PATH=/bin:/usr/bin:/home/nixuser/.nix-profile/bin"
+                "TMPDIR=/home/nixuser/.cache"
+                "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+                "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+                "NIX_REMOTE_TRUSTED_PUBLIC_KEYS=cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+                "NIX_PATH=nixpkgs=${inputs.nixpkgs}"
+                "NIX_REMOTE="
+                "UMASK=022"
+              ];
+            };
+          };
+        });
     };
-    });
-  };
 }
