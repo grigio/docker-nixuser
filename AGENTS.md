@@ -2,6 +2,14 @@
 
 NOTE: Keep it updated with the most useful non-trivial dev info. Keep it minimal.
 
+## CI Publishing (CRITICAL)
+
+The `publish` job only runs on `v*` tag creation, **not** on push to master. Push to master only runs `build` (test, no ghcr.io push). To publish:
+```bash
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
+The tag triggers both `build` and `publish` jobs. The `publish` job builds amd64 + arm64, pushes platform-specific images, then creates multi-arch manifests (version + latest).
+
 ## Multi-Platform CI Builds
 
 The CI workflow builds Docker images for:
