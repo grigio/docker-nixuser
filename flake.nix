@@ -49,20 +49,24 @@
         (runCommand "create-dirs" {} ''
           mkdir -p $out/nix/store/.links
           mkdir -p $out/nix/var/nix/{db,profiles,gcroots,temproots,userpool}
-          # Create user profile structure with proper ownership
           mkdir -p $out/nix/var/nix/profiles/per-user/1000
+          mkdir -p $out/nix/var/nix/{gcroots,temproots,userpool}/per-user/1000
         '')
         (writeScriptBin "setup-permissions" ''
           #!/bin/bash
-          # Setup permissions for user operations with standard store
           mkdir -p /nix/store/.links
-
-          # Create and set permissions for nix/var directory structure
           mkdir -p /nix/var/nix/{db,profiles,gcroots,temproots,userpool}
           mkdir -p /nix/var/nix/profiles/per-user/1000
+          mkdir -p /nix/var/nix/{gcroots,temproots,userpool}/per-user/1000
 
-          # Make nixuser owner of entire nix directory
-          chown -R 1000:1000 /nix
+          # /nix/var is small - full recursive chown
+          chown -R 1000:1000 /nix/var
+          chmod -R 755 /nix/var
+
+          # /nix/store top-level dir for lock files
+          chown 1000:1000 /nix/store
+          # store path directories only (not contents) for deletion access
+          find /nix/store -mindepth 1 -maxdepth 1 -type d -exec chown 1000:1000 {} +
 
              # Ensure user directories exist and are owned by user
              mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
