@@ -10,12 +10,12 @@
     packages = forAllSystems (system: let
       pkgs = import nixpkgs { inherit system; };
     in {
-      default = pkgs.dockerTools.buildLayeredImage {
+      default = pkgs.dockerTools.buildImage {
       name = "nix-nixuser";
       tag = "latest";
 
       # Base layer with core system packages
-      contents = with pkgs; [
+      copyToRoot = with pkgs; [
         bashInteractive
         coreutils
         nix
