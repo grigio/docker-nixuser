@@ -7,6 +7,7 @@
     systems = [ "x86_64-linux" "aarch64-linux" ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
+    formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
     packages = forAllSystems (system: let
       pkgs = import nixpkgs { inherit system; };
     in {
@@ -61,22 +62,13 @@
           mkdir -p /nix/var/nix/profiles/per-user/1000
 
           # Make nixuser owner of nix directory structure
-          # non-recursive on /nix to avoid walking the entire store (99+ layers)
-          chown 1000:1000 /nix
-          chown -R 1000:1000 /nix/var /nix/store/.links
-          chmod 755 /nix
-          chmod -R 755 /nix/var
+          chown -R 1000:1000 /nix
 
              # Ensure user directories exist and are owned by user
              mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
              echo "" > /home/nixuser/.bashrc
              chown -R 1000:1000 /home/nixuser
              chmod -R 755 /home/nixuser
-        '')
-        (writeScriptBin "init-container" ''
-          #!/bin/bash
-          # Run as root to setup permissions
-          /bin/setup-permissions
         '')
         (writeScriptBin "entrypoint" ''
           #!/bin/bash
@@ -92,11 +84,6 @@
            fi
         '')
       ];
-
-      # No extraCommands needed - home directory setup done at runtime
-      extraCommands = ''
-        # All home directory setup moved to runtime to avoid permission issues
-      '';
 
       config = {
         WorkingDir = "/home/nixuser";
