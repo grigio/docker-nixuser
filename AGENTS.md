@@ -4,10 +4,11 @@ NOTE: Keep it updated with the most useful non-trivial dev info. Keep it minimal
 
 ## CI Publishing (CRITICAL)
 
-The `publish` job only runs on `v*` tag creation, **not** on push to master. Push to master only runs `build` (test, no ghcr.io push). To publish:
+The `publish` job runs on `v*` tag push (`push: tags: ['v*']`), **not** on push to master. Push to master only runs `build` (test, no ghcr.io push). To publish:
 ```bash
 git tag vX.Y.Z && git push origin vX.Y.Z
 ```
+Note: Uses `push: tags` trigger, not `create` event — `git push --tags` triggers it reliably.
 The tag triggers both `build` and `publish` jobs. The `publish` job builds amd64 + arm64, pushes platform-specific images, then creates multi-arch manifests (version + latest).
 
 ## Multi-Platform CI Builds
@@ -83,3 +84,10 @@ Docker images run on overlayfs in CI. `chown` on lower-layer files triggers copy
 - `/nix/var` is small, so `chown -R 1000:1000 /nix/var` works fine there
 - When nix needs access to store paths (lock files, substitution), use `chmod` not `chown`
 - Pre-create all per-user directories (`gcroots/per-user/1000`, etc.) at build time in `create-dirs` to avoid runtime creation failures
+
+## buildLayeredImage uid/gid Limitation
+
+`buildLayeredImage { uid = 1000; gid = 1000; }` only applies uid/gid to **store layers**, NOT the **customisation layer** (which contains files from `writeTextDir`, `runCommand`, `writeScriptBin`, etc.). The customisation layer always uses root:root. This means:
+- Store paths (bash, nix, etc.) — owned by 1000:1000, no `chown` needed at runtime
+- `/nix/var`, `/home`, `/etc`, scripts — owned by root:root, must be `chown`-ed in `setup-permissions`
+- Use `chown -R 1000:1000 /nix/var` (small dir, fast) — no need for `chown -R /nix/store` (huge, slow, broken on overlayfs)
