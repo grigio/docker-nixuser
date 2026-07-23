@@ -61,13 +61,8 @@
           mkdir -p /nix/var/nix/{db,profiles,gcroots,temproots,userpool}
           mkdir -p /nix/var/nix/profiles/per-user/1000
 
-          # Make nixuser owner of nix directory structure
-          chown 1000:1000 /nix
-          chown -R 1000:1000 /nix/var /nix/store/.links
-          chown 1000:1000 /nix/store
-          chmod 755 /nix
-          chmod 1777 /nix/store
-          chmod -R 755 /nix/var
+          # Make nixuser owner of entire nix directory
+          chown -R 1000:1000 /nix
 
              # Ensure user directories exist and are owned by user
              mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
