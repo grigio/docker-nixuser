@@ -66,6 +66,7 @@
           chown -R 1000:1000 /nix/var /nix/store/.links
           chown 1000:1000 /nix/store
           chmod 755 /nix
+          chmod 1777 /nix/store
           chmod -R 755 /nix/var
 
              # Ensure user directories exist and are owned by user
