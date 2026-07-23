@@ -60,18 +60,18 @@
                 mkdir -p $out/home/nixuser
               '')
               (writeScriptBin "setup-permissions" ''
-                #!/bin/bash
-                # buildLayeredImage uid/gid only applies to store layers.
-                # The customization layer (/nix/var, /etc, /bin, /home) stays
-                # as root:root, so chown those small paths here.
-                chown -R 1000:1000 /nix/var
-                chmod -R 755 /nix/var
-                chmod -R a+w /nix/store
+                      #!/bin/bash
+                      # buildLayeredImage uid/gid only applies to store layers.
+                      # The customization layer (/nix/var, /etc, /bin, /home) stays
+                      # as root:root, so chown those small paths here.
+                      chown -R 1000:1000 /nix/var
+                      chmod -R 755 /nix/var
+                      chmod -R a+w /nix/store
 
                 # Ensure user subdirectories exist at runtime
                 mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
                 echo "" > /home/nixuser/.bashrc
-                chown 1000:1000 /home/nixuser/.bashrc
+                chown -R 1000:1000 /home/nixuser
                 chmod -R 755 /home/nixuser
               '')
               (writeScriptBin "entrypoint" ''
