@@ -24,6 +24,9 @@ Multi-platform images use Docker manifests. Platform-specific images are tagged 
 Arm64 builds use `docker/setup-qemu-action` for QEMU binfmt registration, allowing Nix to
 cross-build for `aarch64-linux` on amd64 runners via `nix build .#default --system aarch64-linux`.
 
+Arm64 testing in CI uses `docker run --platform linux/arm64` (relies on QEMU binfmt from
+`docker/setup-qemu-action` for transparent emulation).
+
 ## Flake Auto-Update
 
 The `flake-update-check.yml` workflow runs weekly (Sunday 2 AM UTC) and:
