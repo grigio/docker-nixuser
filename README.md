@@ -84,6 +84,17 @@ nixuser
 Hello, world!
 ```
 
+## Benchmarks
+
+`docker run --rm nix-nixuser:latest sh -c 'whoami'` vs `podman run --rm nix-nixuser:latest sh -c 'whoami'`:
+
+| Runtime | Version | real | user | sys |
+|---------|---------|------|------|-----|
+| Docker | 29.6.2 | 1.666s | 0.016s | 0.022s |
+| Podman | 6.0.1 | 1.197s | 0.091s | 0.104s |
+
+Podman starts faster here (~28% wall-time improvement), though Docker uses less CPU time.
+
 ## Usage
 
 ### Installing Packages
