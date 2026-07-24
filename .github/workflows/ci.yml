@@ -1,5 +1,9 @@
 name: CI
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -9,6 +13,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
@@ -30,15 +35,17 @@ jobs:
           docker load < result-amd64
           docker tag nix-nixuser:latest nix-nixuser:amd64
 
+      - name: Set up QEMU for cross-build
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
       - name: Build Docker image (arm64)
         id: build-arm64
         run: |
-          nix --extra-experimental-features 'nix-command flakes' build .#default --out-link result-arm64
-          # Note: arm64 build requires running on arm64 or via cross-compilation
-          # For now, we load and tag as placeholder
-          # In production, use arm64 runners or cross-compilation
-          docker load < result-arm64 2>/dev/null || echo "Arm64 build skipped - using amd64 only"
-          docker tag nix-nixuser:latest nix-nixuser:arm64 2>/dev/null || true
+          nix --extra-experimental-features 'nix-command flakes' build .#default --system aarch64-linux --out-link result-arm64
+          docker load < result-arm64
+          docker tag nix-nixuser:latest nix-nixuser:arm64
 
       - name: Extract metadata
         id: meta
@@ -61,10 +68,15 @@ jobs:
         run: |
           docker run --rm nix-nixuser:amd64 sh -c 'whoami && nix profile add nixpkgs#hello && hello'
 
+      - name: Test the container (arm64)
+        run: |
+          docker run --rm --platform linux/arm64 nix-nixuser:arm64 sh -c 'whoami && nix profile add nixpkgs#hello && hello'
+
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout code
@@ -92,9 +104,9 @@ jobs:
 
       - name: Build Docker image with Nix (arm64)
         run: |
-          nix --extra-experimental-features 'nix-command flakes' build .#default --out-link result-arm64
-          docker load < result-arm64 2>/dev/null || echo "Arm64 build skipped"
-          docker tag nix-nixuser:latest nix-nixuser:arm64 2>/dev/null || true
+          nix --extra-experimental-features 'nix-command flakes' build .#default --system aarch64-linux --out-link result-arm64
+          docker load < result-arm64
+          docker tag nix-nixuser:latest nix-nixuser:arm64
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -114,9 +126,9 @@ jobs:
           docker tag nix-nixuser:amd64 ghcr.io/${{ github.repository }}:$TAG-amd64
           docker push ghcr.io/${{ github.repository }}:$TAG-amd64
           
-          # Tag and push arm64 if available
-          docker tag nix-nixuser:arm64 ghcr.io/${{ github.repository }}:$TAG-arm64 2>/dev/null && \
-          docker push ghcr.io/${{ github.repository }}:$TAG-arm64 2>/dev/null || echo "Arm64 image skipped"
+          # Tag and push arm64
+          docker tag nix-nixuser:arm64 ghcr.io/${{ github.repository }}:$TAG-arm64
+          docker push ghcr.io/${{ github.repository }}:$TAG-arm64
 
       - name: Create and push manifest
         run: |
@@ -126,21 +138,19 @@ jobs:
           fi
           
           # Pull images for manifest (need to be in registry)
-          docker pull ghcr.io/${{ github.repository }}:$TAG-amd64 || true
-          docker pull ghcr.io/${{ github.repository }}:$TAG-arm64 2>/dev/null || true
+          docker pull ghcr.io/${{ github.repository }}:$TAG-amd64
+          docker pull ghcr.io/${{ github.repository }}:$TAG-arm64
           
           # Create manifest for version tag
           docker manifest create ghcr.io/${{ github.repository }}:$TAG \
             ghcr.io/${{ github.repository }}:$TAG-amd64 \
-            ghcr.io/${{ github.repository }}:$TAG-arm64 2>/dev/null || \
-          docker manifest create ghcr.io/${{ github.repository }}:$TAG \
-            ghcr.io/${{ github.repository }}:$TAG-amd64
+            ghcr.io/${{ github.repository }}:$TAG-arm64
           
           # Annotate
           docker manifest annotate ghcr.io/${{ github.repository }}:$TAG \
             ghcr.io/${{ github.repository }}:$TAG-amd64 --arch amd64
           docker manifest annotate ghcr.io/${{ github.repository }}:$TAG \
-            ghcr.io/${{ github.repository }}:$TAG-arm64 --arch arm64 2>/dev/null || true
+            ghcr.io/${{ github.repository }}:$TAG-arm64 --arch arm64
           
           # Push manifest
           docker manifest push ghcr.io/${{ github.repository }}:$TAG
@@ -148,14 +158,12 @@ jobs:
           # Also create and push latest tag
           docker manifest create ghcr.io/${{ github.repository }}:latest \
             ghcr.io/${{ github.repository }}:$TAG-amd64 \
-            ghcr.io/${{ github.repository }}:$TAG-arm64 2>/dev/null || \
-          docker manifest create ghcr.io/${{ github.repository }}:latest \
-            ghcr.io/${{ github.repository }}:$TAG-amd64
+            ghcr.io/${{ github.repository }}:$TAG-arm64
           
           docker manifest annotate ghcr.io/${{ github.repository }}:latest \
             ghcr.io/${{ github.repository }}:$TAG-amd64 --arch amd64
           docker manifest annotate ghcr.io/${{ github.repository }}:latest \
-            ghcr.io/${{ github.repository }}:$TAG-arm64 --arch arm64 2>/dev/null || true
+            ghcr.io/${{ github.repository }}:$TAG-arm64 --arch arm64
           
           docker manifest push ghcr.io/${{ github.repository }}:latest
 

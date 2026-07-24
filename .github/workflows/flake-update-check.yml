@@ -15,6 +15,7 @@ on:
 jobs:
   check-flake-updates:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
@@ -91,6 +92,7 @@ jobs:
     needs: check-flake-updates
     if: needs.check-flake-updates.outputs.up_to_date == 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code

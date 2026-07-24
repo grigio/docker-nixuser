@@ -15,11 +15,14 @@ The tag triggers both `build` and `publish` jobs. The `publish` job builds amd64
 
 The CI workflow builds Docker images for:
 - `linux/amd64` (x86_64)
-- `linux/arm64` (aarch64)
+- `linux/arm64` (aarch64) — built via Nix `--system aarch64-linux` with QEMU emulation
 
 Multi-platform images use Docker manifests. Platform-specific images are tagged as:
 - `ghcr.io/grigio/docker-nixuser:TAG-amd64`
 - `ghcr.io/grigio/docker-nixuser:TAG-arm64`
+
+Arm64 builds use `docker/setup-qemu-action` for QEMU binfmt registration, allowing Nix to
+cross-build for `aarch64-linux` on amd64 runners via `nix build .#default --system aarch64-linux`.
 
 ## Flake Auto-Update
 
@@ -73,7 +76,6 @@ Hello, world!
   - `SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt`
   - `NIX_REMOTE_TRUSTED_PUBLIC_KEYS=cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=`
 - Entrypoint sets up proper directory permissions before switching to nixuser
-- Note: Home directory ownership issue resolved by setting HOME=/tmp in environment, allowing Nix to fall back to the properly owned /home/nixuser without warnings.
 
 ## Overlayfs Permission Pitfalls (CRITICAL)
 

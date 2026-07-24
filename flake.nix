@@ -81,7 +81,7 @@
               WorkingDir = "/home/nixuser";
               Entrypoint = [ "/bin/entrypoint" ];
               Env = [
-                "HOME=/tmp"
+                "HOME=/home/nixuser"
                 "USER=nixuser"
                 "PATH=/bin:/usr/bin:/home/nixuser/.nix-profile/bin"
                 "TMPDIR=/home/nixuser/.cache"
