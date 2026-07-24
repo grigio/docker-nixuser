@@ -15,14 +15,13 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          default = pkgs.dockerTools.buildLayeredImage {
+          default = pkgs.dockerTools.buildImage {
             name = "nix-nixuser";
             tag = "latest";
             uid = 1000;
             gid = 1000;
 
-            # Base layer with core system packages
-            contents = with pkgs; [
+            copyToRoot = with pkgs; [
               bashInteractive
               coreutils
               nix
@@ -30,8 +29,6 @@
               shadow
               util-linux
               sudo
-
-              # optional
               procps
               gnugrep
               gnused
@@ -40,11 +37,10 @@
               iputils
               gnumake
               curl
-              bun # node
-              uv # python
+              bun
+              uv
               nano
               git
-
               opencode
 
               (writeTextDir "etc/nix/nix.conf" "experimental-features = nix-command flakes\nsubstituters = https://cache.nixos.org/\ntrusted-users = root nixuser\nsandbox = false\nbuild-users-group =\nssl-cert-file = ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt\nrequire-sigs = false\n")
@@ -60,15 +56,10 @@
                 mkdir -p $out/home/nixuser
               '')
               (writeScriptBin "setup-permissions" ''
-                      #!/bin/bash
-                      # buildLayeredImage uid/gid only applies to store layers.
-                      # The customization layer (/nix/var, /etc, /bin, /home) stays
-                      # as root:root, so chown those small paths here.
-                      chown -R 1000:1000 /nix/var
-                      chmod -R 755 /nix/var
-                      chmod -R a+w /nix/store
-
-                # Ensure user subdirectories exist at runtime
+                #!/bin/bash
+                chown -R 1000:1000 /nix/var
+                chmod -R 755 /nix/var
+                chmod a+w /nix/store /nix/store/.links
                 mkdir -p /home/nixuser/.local/state /home/nixuser/.cache
                 echo "" > /home/nixuser/.bashrc
                 chown -R 1000:1000 /home/nixuser
@@ -76,16 +67,13 @@
               '')
               (writeScriptBin "entrypoint" ''
                 #!/bin/bash
-                # Setup permissions as root
                 /bin/setup-permissions
-
                 cd /home/nixuser
-                 # Switch to nixuser using setpriv with standard store location
-                 if [ $# -eq 0 ]; then
-                   exec setpriv --reuid=1000 --regid=1000 --init-groups env HOME=/home/nixuser USER=nixuser NIX_REMOTE= bash
-                 else
-                   exec setpriv --reuid=1000 --regid=1000 --init-groups env HOME=/home/nixuser USER=nixuser NIX_REMOTE= "$@"
-                 fi
+                if [ $# -eq 0 ]; then
+                  exec setpriv --reuid=1000 --regid=1000 --init-groups env HOME=/home/nixuser USER=nixuser NIX_REMOTE= bash
+                else
+                  exec setpriv --reuid=1000 --regid=1000 --init-groups env HOME=/home/nixuser USER=nixuser NIX_REMOTE= "$@"
+                fi
               '')
             ];
 

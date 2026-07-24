@@ -85,9 +85,27 @@ Docker images run on overlayfs in CI. `chown` on lower-layer files triggers copy
 - When nix needs access to store paths (lock files, substitution), use `chmod` not `chown`
 - Pre-create all per-user directories (`gcroots/per-user/1000`, etc.) at build time in `create-dirs` to avoid runtime creation failures
 
-## buildLayeredImage uid/gid Limitation
+## Single-Layer Image with buildImage
 
-`buildLayeredImage { uid = 1000; gid = 1000; }` only applies uid/gid to **store layers**, NOT the **customisation layer** (which contains files from `writeTextDir`, `runCommand`, `writeScriptBin`, etc.). The customisation layer always uses root:root. This means:
-- Store paths (bash, nix, etc.) — owned by 1000:1000, no `chown` needed at runtime
-- `/nix/var`, `/home`, `/etc`, scripts — owned by root:root, must be `chown`-ed in `setup-permissions`
-- Use `chown -R 1000:1000 /nix/var` (small dir, fast) — no need for `chown -R /nix/store` (huge, slow, broken on overlayfs)
+The image uses `pkgs.dockerTools.buildImage` (not `buildLayeredImage`), producing exactly **1 Docker layer** (previously ~99 layers with `buildLayeredImage`).
+
+### How It Works
+
+`buildImage` with `copyToRoot`:
+1. Each store path is **re-rooted** via `rsync` — files appear at standard paths (e.g., `/bin/bash`, `/etc/nix/nix.conf`)
+2. The full Nix store paths (`/nix/store/hash-...`) are also included from the closure
+3. `uid = 1000; gid = 1000` sets ownership on the re-rooted layer files
+4. Everything goes into a single Docker layer
+
+### Runtime Permissions
+
+All files in the single layer are owned by 1000:1000. The Nix store paths (from closure) remain root:root. The `setup-permissions` script handles this:
+- `chmod a+w /nix/store /nix/store/.links` — makes store itself writable (NOT recursive: 111k files on overlayfs is extremely slow)
+- `chown -R 1000:1000 /nix/var` — small dir, fast chown
+- `chown -R 1000:1000 /home/nixuser` — small dir, fast chown
+
+This is overlayfs-safe: no `chown` on `/nix/store`.
+
+### Performance Pitfalls
+
+- **Never use `chmod -R` on `/nix/store`**: The image has ~111k files under `/nix/store`. Recursive chmod on overlayfs triggers a metadata copy-up for every file, taking minutes. Only `/nix/store` and `/nix/store/.links` need write permissions (Nix creates new store paths there; existing paths are read-only).
